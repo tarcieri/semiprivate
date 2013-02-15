@@ -1,5 +1,3 @@
-require "semiprivate/version"
-
-module Semiprivate
-  # Your code goes here...
-end
+require 'rbnacl'
+require 'semiprivate/version'
+require 'semiprivate/keys'
