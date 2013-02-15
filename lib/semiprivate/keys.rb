@@ -22,6 +22,15 @@ module Semiprivate
     [num.to_s(16)].pack("H*")
   end
 
+  def self.pad_key(bytes)
+    missing_zeros = Crypto::NaCl::SECRETKEYBYTES - bytes.bytesize
+    Crypto::Util.prepend_zeros(missing_zeros, bytes)
+  end
+
+  def self.num_to_key(num)
+    pad_key(num_to_bytes(num))
+  end
+
   class WriteKey
     extend Forwardable
 
@@ -44,11 +53,7 @@ module Semiprivate
       semiprivate_scalar = Semiprivate.bytes_to_num(@read_key.semiprivate_scalar)
       private_scalar     = original_scalar * semiprivate_scalar % Crypto::STANDARD_GROUP_ORDER
 
-      private_scalar_bytes = Semiprivate.num_to_bytes(private_scalar)
-      missing_zeros = Crypto::NaCl::SECRETKEYBYTES - private_scalar_bytes.bytesize
-      private_scalar_bytes = Crypto::Util.prepend_zeros(missing_zeros, private_scalar_bytes)
-
-      @private_scalar = private_scalar_bytes
+      @private_scalar = Semiprivate.num_to_key(private_scalar)
     end
   end
 
@@ -62,7 +67,8 @@ module Semiprivate
       digest = Crypto::Hash.sha512(@semiprivate_key)
       left_half, right_half = digest[0, 32], digest[32, 64]
 
-      @semiprivate_scalar = Semiprivate.prepare_key(left_half)
+      semiprivate_scalar  = Semiprivate.bytes_to_num(Semiprivate.prepare_key(left_half))
+      @semiprivate_scalar = Semiprivate.num_to_key(semiprivate_scalar % Crypto::STANDARD_GROUP_ORDER)
       @symmetric_key      = right_half
 
       @verify_key = Crypto::VerifyKey.new Crypto::Point.new(@semiprivate_key).mult(@semiprivate_scalar)
